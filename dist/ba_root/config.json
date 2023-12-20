@@ -1,0 +1,44 @@
+{
+ "Achievements": {},
+ "Auto Account State": "Server",
+ "Auto Balance Teams": true,
+ "Campaigns": {},
+ "Fleet Zone Pings": {
+  "prod": {
+   "atlanta": 74.98530499999845,
+   "houston": 108.2874060000023,
+   "lima": 98.21980499999938,
+   "miami": 48.40500299999917,
+   "n_virginia": 79.17070400000625,
+   "queretaro": 109.02350599999977
+  }
+ },
+ "Free-for-All Playlist Randomize": true,
+ "Free-for-All Playlist Selection": "__default__",
+ "Free-for-All Playlists": {},
+ "Idle Exit Minutes": null,
+ "Local Account Name": "Server15229429",
+ "Player Profiles": {
+  "__account__": {
+   "character": "Spaz",
+   "color": [
+    0.5,
+    0.25,
+    1.0
+   ],
+   "highlight": [
+    0.5,
+    0.25,
+    1.0
+   ]
+  }
+ },
+ "Plugins": {},
+ "Port": 43210,
+ "Show Tutorial": false,
+ "Signed In Last Session": false,
+ "Team Tournament Playlists": {},
+ "launchCount": 1,
+ "lc14173": 1,
+ "lc14292": 1
+}
