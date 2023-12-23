@@ -6,6 +6,10 @@ from myspaz import tag, spazeff, turbo_punch
 from typing import Sequence
 
 class SpazPlayer(PlayerSpaz):
+    """
+    esta clase decora la clase PlayerSpaz la usaremos para aplicar nuestras modificaciones
+    sin alterar la orginal
+    """
     def __init__(self,
                  player: bs.Player,
                  color: Sequence[float] = (1.0, 1.0, 1.0),
@@ -26,5 +30,5 @@ class SpazPlayer(PlayerSpaz):
 
 
 def run():
-    if turbo_punch.turboSpamming: turbo_punch.enable() ; print('Triple Punch Enable!')
+    if turbo_punch.turboSpamming: turbo_punch.enable()
     bascenev1lib.actor.playerspaz.PlayerSpaz = SpazPlayer

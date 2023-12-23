@@ -6,6 +6,14 @@ import weakref
 from myspaz.tag import PermissionEffect
 
 class decorator(object):
+
+    """ 
+    clase que nos ayudara a aplicar efecto a nuestro spaz
+    parametros:
+        node: para la referencia del nodo spaz
+        player: argumento q nos servira para extraer el account_id                         
+    """
+
     def __init__(self, node, player):
         self.node = node
         self.player=player
@@ -17,6 +25,7 @@ class decorator(object):
 
         # Test
         if account_id is None or account_id != "pb-IF4xVUg4FA==":
+            # no hagas nada si es que el account_id te retorna None
             return
 
         # Test Effects

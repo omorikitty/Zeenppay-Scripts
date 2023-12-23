@@ -22,10 +22,14 @@ class setup(babase.Plugin):
 
 
 def runMods():
+    """
+    esta funcion almacena todas nuestras modificaciones 
+    """
     import_gamemodes()
     spazmod.run()
 
 def import_gamemodes():
+    """ Usaremos esta funcion para importar los modos de juegos de manera dinamica """
     sys.path.append(_babase.env()['python_directory_user'] + os.sep + "gamemodes")
     gamemodes = os.listdir("ba_root/mods/gamemodes")
     for gamemode in gamemodes:
