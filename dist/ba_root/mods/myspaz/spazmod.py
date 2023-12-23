@@ -1,0 +1,30 @@
+import babase
+import bascenev1 as bs
+import bascenev1lib
+from bascenev1lib.actor.playerspaz import PlayerSpaz
+from myspaz import tag, spazeff, turbo_punch
+from typing import Sequence
+
+class SpazPlayer(PlayerSpaz):
+    def __init__(self,
+                 player: bs.Player,
+                 color: Sequence[float] = (1.0, 1.0, 1.0),
+                 highlight: Sequence[float] = (0.5, 0.5, 0.5),
+                 character: str = 'Spaz',
+                 powerups_expire: bool = True,):
+        
+        super().__init__(player=player,
+                         color=color,
+                         highlight=highlight,
+                         character=character,
+                         powerups_expire=powerups_expire,)
+
+
+
+        spazeff.decorator(self.node, self._player) 
+
+
+
+def run():
+    if turbo_punch.turboSpamming: turbo_punch.enable() ; print('Triple Punch Enable!')
+    bascenev1lib.actor.playerspaz.PlayerSpaz = SpazPlayer
