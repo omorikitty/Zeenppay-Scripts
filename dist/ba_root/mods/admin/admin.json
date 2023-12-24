@@ -1,0 +1,15 @@
+{
+    "owner": {
+        "tag": "OWNER",
+        "id": []
+    },
+    "admin": {
+        "tag": "ADMIN",
+        "id": ["pb-IF4xVUg4FA=="]
+    },
+    "vip": {
+        "tag": "VIP",
+        "id": []
+    }
+
+}

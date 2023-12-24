@@ -4,6 +4,8 @@ import bascenev1 as bs
 import random
 import weakref
 from myspaz.tag import PermissionEffect
+from admin import roles
+
 
 class decorator(object):
 
@@ -23,14 +25,23 @@ class decorator(object):
         # Obtener el ID de la cuenta del jugador
         account_id = player._sessionplayer.get_v1_account_id()
 
-        # Test
-        if account_id is None or account_id != "pb-IF4xVUg4FA==":
-            # no hagas nada si es que el account_id te retorna None
+        
+        #test
+        #print(roles.whatRol(account_id))
+
+        # no hagas nada si es que el account id no esta en la lista de roles
+        # tambien si es que no se consigue el account id del jugador
+        if account_id is None and roles.dontAdmin(account_id):
             return
 
-        # Test Effects
-        PermissionEffect(owner=self.node, tag="OWNER")
         self.timeEff = bs.Timer(0.2, bs.Call(self._set_fairydust), repeat=True)
+
+        # aplica el tag espesifico de cada rol
+        myrol=roles.whatRol(account_id)
+        PermissionEffect(owner=self.node, tag=roles.get_all_roles()[myrol]["tag"])
+
+        
+
 
     def _set_fairydust(self):
         if not self.node.exists() or not self.player.is_alive():
