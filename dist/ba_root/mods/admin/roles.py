@@ -33,7 +33,7 @@ def dontAdmin(account):
 def whatRol(account):
     """retorna el tipo de rol espesifico 
     """
-    if id is None:
+    if account is None:
         return
 
     for i in all_roles:
