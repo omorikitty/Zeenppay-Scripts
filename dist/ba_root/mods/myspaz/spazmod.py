@@ -24,8 +24,11 @@ class SpazPlayer(PlayerSpaz):
                          powerups_expire=powerups_expire,)
 
 
-
-        spazeff.decorator(self.node, self._player) 
+        try:
+            spazeff.Decorator(self)
+        except Exception as e:
+            print(e)
+            return 
 
 
 
