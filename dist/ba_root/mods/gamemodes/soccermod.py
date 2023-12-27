@@ -1,25 +1,59 @@
-# Released under the MIT License. See LICENSE for details.
-#
-"""Implements football games (both co-op and teams varieties)."""
-
-# ba_meta require api 8
-# (see https://ballistica.net/wiki/meta-tag-system)
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-
+import random
 import babase
 import bascenev1 as bs
+import bascenev1lib
 from bascenev1lib.actor.playerspaz import PlayerSpaz
 from bascenev1lib.game.hockey import PuckDiedMessage, Player, Team, HockeyGame
 from bascenev1lib.gameutils import SharedObjects
-from bascenev1lib.actor.scoreboard import Scoreboard
+from bascenev1lib.actor.scoreboard import Scoreboard, _Entry
 from bascenev1lib.actor.powerupbox import PowerupBoxFactory
 
 if TYPE_CHECKING:
     from typing import Any, Sequence, Dict, Type, List, Optional, Union
 
+# Released under the MIT License. See LICENSE for details.
+#
+"""Implements football games (both co-op and teams varieties)."""
+
+
+"""
+Lista de cambios:
+
+- Mejor Game Feel al Golpear el Balon
+- Se Cambio el Scoreboard a Uno Mas Simple
+- Se Añadio Un Localizador Para Preever Donde Caera La Bola
+
+Nota: Esto Es Un Port del Mod de Futbol Soccer Creado 
+Por oore282 Todo Los Creditos Para el Solo Añadi Pequeñas Modificaciones
+
+Creditos: oore282
+portBy: Zeenppay
+"""
+
+# ba_meta require api 8
+# (see https://ballistica.net/wiki/meta-tag-system)
+
+
+
+
+
+class board(Scoreboard):
+    """Decoraremos el scoreboard para que se vea mas minimalista"""
+    def __init__(self, label: bs.Lstr | None = None, score_split: float = 0.7):
+        super().__init__()
+
+        if not isinstance(bs.getsession(), bs.FreeForAllSession):
+            self._do_cover = False
+            self._spacing = 30.0
+            self._pos = (20.0, -70.0)
+            self._scale = 0.9
+            self._flash_length = 1
+
+
+bascenev1lib.actor.scoreboard.Scoreboard = board
 
 class Puck(bs.Actor):
     """A lovely giant hockey puck."""
@@ -39,19 +73,119 @@ class Puck(bs.Actor):
         self.node = bs.newnode('prop',
                                delegate=self,
                                attrs={
-                                   'mesh': bs.getmesh('frostyPelvis'),
+                                   'mesh': bs.getmesh('shield'),
                                    'color_texture':
-                                        bs.gettexture('achievementSuperPunch'),
+                                        bs.gettexture('discordLogo'),
                                    'body': 'sphere',
                                    'body_scale': 1,
                                    'reflection': 'soft',
-                                   'reflection_scale': [0.2],
+                                   'reflection_scale': [0.1],
                                    'shadow_size': 0.5,
                                    'is_area_of_interest': True,
                                    'position': self._spawn_pos,
                                    'materials': pmats
                                })
-        bs.animate(self.node, 'mesh_scale', {0: 0, 0.2: 1.2, 0.26: 1.0})
+        bs.animate(self.node, 'mesh_scale', {0: 0, 0.1: 0.2, 0.2: 0.3})
+        self._localizeBall()
+
+    def _localizeBall(self):
+        """
+        Simplemente nos ayudara ubicar la pelota cuando avienten
+        la pelota por los aires, pensemos en los porteros que le hechan gol
+        por un fallo de perspectiva
+        """
+
+        attr = [
+            {
+                'shape': 'circle',
+                'color': (1, 1, 1),
+                'opacity':0.05,
+                'size': [1],
+                'draw_beauty': True,
+                'additive': False
+            },
+
+            {
+                'shape': 'circleOutline',
+                'size':[1],
+                'opacity': 0.1,
+                'color': (1, 1, 0),
+                'draw_beauty': False,
+                'additive': True
+            }
+
+        ]
+
+        for i in attr:
+            loc = bs.newnode('locator', 
+                owner=self.node, 
+                attrs=i)
+            self.node.connectattr('position', loc,
+                                  'position')
+        
+
+    def _puckAnim(self, msg):
+        """ 
+        Esa funcion añade animacion y efectos a la pelota
+        para un mejor game feel en nuestro gameplay no queremos que nuestro
+        balon sea aburrido todo el tiempo :p
+            
+        """
+        from bascenev1lib.actor.popuptext import PopupText
+        
+        # comprueba que la pelota aun este viva xd :p
+        if not self.node.exists():
+            return
+
+        assert msg.force_direction is not None
+
+        # reproduce este sonido cuando pegen a la bola
+        bs.getsound('pop01').play(0.4, position=self.node.position)
+
+        
+        # emitir particulas tambien le da un toque jeje
+        for _ in range(10):
+            bs.emitfx(position=msg.pos,
+                      velocity=(msg.force_direction[0] * 2.0,
+                                msg.force_direction[1] * 2.0,
+                                msg.force_direction[2] * 2.0),
+                      spread=1.0,
+                      emit_type='fairydust')
+
+
+        # Esto le dara una capa extra de ezquisites ulala..
+        punchpos = (msg.pos[0] + msg.force_direction[0] * 0.02,
+                    msg.pos[1] + msg.force_direction[1] * 0.02,
+                    msg.pos[2] + msg.force_direction[2] * 0.02)
+        flash_color = (1.0, 0.8, 0.4)
+        light = bs.newnode(
+            'light',
+            attrs={
+                'position': punchpos,
+                'radius': 0.3,
+                'intensity': 0.7 ,
+                'height_attenuated': False,
+                'color': flash_color
+            })
+        bs.timer(0.06, light.delete)
+
+        flash = bs.newnode('flash',
+                            attrs={
+                                'position': punchpos,
+                                'size': 0.5,
+                                'color': (2,2,2)
+                            })
+        bs.timer(0.06, flash.delete)
+
+        # crea una animacion rapida como de rebote
+        # para que se vea que fue golpeada y no este
+        # re dura como mi pito :p
+        bs.animate(self.node, 'mesh_scale', {0: 0.3, 0.03: 0.5, 0.06: 0.3})
+        
+
+        # Cuando golpee la bola muestra un mensaje random
+        PopupText(random.choice(
+            ['Bang!', 'Egoist!', 'HAHA!', 'Maradona!', 'XD']),position=self.node.position, color=(2,2,2)).autoretain()
 
     def handlemessage(self, msg: Any) -> Any:
         if isinstance(msg, bs.DieMessage):
@@ -60,6 +194,8 @@ class Puck(bs.Actor):
             activity = self._activity()
             if activity and not msg.immediate:
                 activity.handlemessage(PuckDiedMessage(self))
+
+
 
         # If we go out of bounds, move back to where we started.
         elif isinstance(msg, bs.OutOfBoundsMessage):
@@ -76,15 +212,7 @@ class Puck(bs.Actor):
                 msg.force_direction[0], msg.force_direction[1],
                 msg.force_direction[2])
 
-            from bascenev1lib.actor.popuptext import PopupText
-            def eff():
-                if self.node.exists():
-                    bs.emitfx(position=(self.node.position[0],self.node.position[1], self.node.position[2]),
-                              velocity=self.node.velocity,
-                              spread=1.0,
-                              emit_type='fairydust')
-            bs.basetimer(0.1, babase.Call(eff))
-            #PopupText('Shoot!',position=self.node.position).autoretain()
+            self._puckAnim(msg)
 
             # If this hit came from a player, log them as the last to touch us.
             s_player = msg.get_source_player(Player)
@@ -151,7 +279,7 @@ class SoccerGame(HockeyGame):
     def __init__(self, settings: dict):
         super().__init__(settings)
         shared = SharedObjects.get()
-        self._scoreboard = Scoreboard()
+        self._scoreboard = board()
         self._cheer_sound = bs.getsound('cheer')
         self._chant_sound = bs.getsound('crowdChant')
         self._foghorn_sound = bs.getsound('foghorn')
@@ -228,7 +356,7 @@ class SoccerGame(HockeyGame):
             activity.map.is_hockey = False
         activity.map.node.materials = [shared.footing_material]
         activity.map.floor.materials = [shared.footing_material]
-        activity.map.floor.color = (1.0, 1.0, 0.1)
+        activity.map.floor.color = (0.1, 1.0, 0.1)
 
     def on_begin(self) -> None:
         
