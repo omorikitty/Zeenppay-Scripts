@@ -32,7 +32,8 @@ def get_player_icon(sessionplayer: bascenev1.SessionPlayer) -> dict[str, Any]:
         'tint2_color': info['tint2_color'],
     }
 
-
+from chatmanager import FilterChat
+@FilterChat.main
 def filter_chat_message(msg: str, client_id: int) -> str | None:
     """Intercept/filter chat messages.
 
