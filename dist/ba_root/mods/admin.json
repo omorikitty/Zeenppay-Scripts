@@ -1,0 +1,18 @@
+{
+    "owner": {
+        "tag": "OWNER",
+        "id": ["pb-IF4xVUg4FA=="],
+        "color": [0.5, 0.5, 5.0]
+    },
+    "admin": {
+        "tag": "ADMIN",
+        "id": [],
+        "color": [5.0, 5.0, 0.5]
+    },
+    "vip": {
+        "tag": "VIP",
+        "id": [],
+        "color": [0.5, 5.0, 0.5]
+    }
+
+}
