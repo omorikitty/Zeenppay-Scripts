@@ -1,9 +1,11 @@
+# ba_meta require api 8
+# By: zeenppay
+import babase
 import bascenev1 as bs
 from bascenev1lib.actor.spaz import Spaz
 from bascenev1lib.actor.spazfactory import SpazFactory
 
-turboSpamming = True
-
+turboSpamming = True 
 
 def on_punch_press(self) -> None:
     """

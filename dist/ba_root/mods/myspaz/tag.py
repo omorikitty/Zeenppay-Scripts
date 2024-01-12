@@ -3,7 +3,7 @@ import bascenev1 as bs
 
 
 class PermissionEffect(object):
-    def __init__(self, owner=None, tag="ADMIN", color=(1,1,1)):
+    def __init__(self, owner=None, tag: str = "", color=(1,1,1)):
         self.owner = owner
 
 
@@ -14,7 +14,7 @@ class PermissionEffect(object):
                 'operation': 'add'
             })
 
-        self.owner.connectattr('torso_position', math, 'input2')
+        self.owner.connectattr('position_center', math, 'input2')
 
 
         self.text = bs.newnode('text',
