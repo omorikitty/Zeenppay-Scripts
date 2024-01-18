@@ -3,7 +3,7 @@ import time
 import asyncio
 from _babase import env
 
-log_path = os.path.join(env()["python_directory_user"], "logs" + os.sep)
+log_path = os.path.join(env()["python_directory_user"], "logger/logs" + os.sep)
 cmd_logs = []
 
 
