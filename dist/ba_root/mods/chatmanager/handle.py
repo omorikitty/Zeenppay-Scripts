@@ -37,6 +37,19 @@ def get_uniqueid(client: int):
 
     return
 
+def index_from_client_id(clientid:int):
+    session = bs.get_foreground_host_session()
+    # for client_id
+    if len(str(clientid)) == 3:
+        for i, player in enumerate(session.sessionplayers):
+            if player.inputdevice.client_id == clientid:
+                return i
+    else:
+        # for player_id
+        if clientid < len(session.sessionplayers):
+            return session.sessionplayers[clientid]
+
+    return
 
 def playerFromClientID(clientid: int):
     """Retorna el jugador indexado."""
@@ -86,9 +99,21 @@ def everyone():
     allplayer: list = []
     activity = bs.get_foreground_host_activity().players
     for player in activity:
-        if hasattr(player, "actor"):
+        if player.actor:
             allplayer.append(player.actor)
     return allplayer
+
+def handle_msg(player: int, m):
+    activity = bs.get_foreground_host_activity()
+    req = index_from_client_id(player)
+    if activity is not None:
+        activity.players[req].actor.node.handlemessage(m)
+
+def all_handle_msg(m):
+    activity = bs.get_foreground_host_activity()
+    if activity is not None:
+        for player in activity.players:
+            player.actor.node.handlemessage(m)
 
 
 def all_player_actor():

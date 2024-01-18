@@ -14,15 +14,19 @@ from .handle import (
     myactor,
     all_player_actor,
     everyone,
+    handle_msg,
+    all_handle_msg,
+    index_from_client_id
 )
 from admin import roles
 from .cmdManager import CommandManager
+from admin.roles import add_account_rol, remove_account_rol, get_all_roles
 import time
 import threading
 
 publicCmd = ["uniqueid", "list", "love", "cmds"]
 adminCommand = [
-    "admin",
+    "rol",
     "kick",
     "end",
     "restart",
@@ -30,6 +34,10 @@ adminCommand = [
     "godspeed",
     "explodehead",
     "gravity",
+    "freeze",
+    "thaw",
+    "kill",
+    "maxplayer"
 ]
 manager = CommandManager()
 
@@ -60,7 +68,8 @@ def admin_command(func):
     """Verifica si el jugador tiene un rol."""
 
     def wrapper(msg, client_id):
-        if authorize(client_id, msg):
+        cmds = extract_command(msg)
+        if authorize(client_id, msg) and cmds in adminCommand:
             func(msg, client_id)
         else:
             sendmsg("Tu ere pobre, tu no tiene admin.", client_id)
@@ -128,24 +137,63 @@ def handleCmd(
         elif command == "gravity":
             gravity(argument)
 
+        elif command == "freeze":
+            freeze(argument, client_id)
+
+        elif command == "thaw":
+            thaw(argument, client_id)
+
+        elif command == "kill":
+            kill(argument, client_id)
+
+        elif command == "maxplayer":
+            maxplayer(argument, client_id)
+
+        elif command == "rol":
+            add_admin(argument, client_id)
+
     except Exception as e:
         sendmsg(f"Error: {e}", client_id)
-        print(e)
         return
+
+
+
+def add_admin(argument, clientid):
+    if not argument or argument == [''] or len(argument) < 3:
+        sendmsg(f"Formato: /rol <rol: owner, admin, vip> | <add/remove> | <clientid/playerid>", clientid)
+    else:
+        rol = argument[0]
+        if rol in get_all_roles():
+            if argument[1] == "add":
+                player = playerFromClientID(int(argument[2]))
+                accountid = player.get_v1_account_id()
+                name = player.getname(True, True)
+                add_account_rol(rol, accountid, name)
+            elif argument[1] == "remove":
+                player = playerFromClientID(int(argument[2]))
+                accountid = player.get_v1_account_id()
+                name = player.getname(True, True)
+                remove_account_rol(rol, accountid, name)
+        else:
+            return
 
 
 def end(argument):
     """Finaliza la partida al siguiente juego o mapa"""
     if not argument or argument == [""]:
         with bs.get_foreground_host_activity().context:
-            bs.get_foreground_host_activity().end_game()
-            bs.broadcastmessage("Finalizando Partida...")
+            try:
+                bs.get_foreground_host_activity().end_game()
+                bs.broadcastmessage("Finalizando Partida...")
+            except:
+                bs.broadcastmessage("Ya Esta Siendo Finalizada!")
+                return
 
 
 def restart(argument):
     """Reinicia el servidor"""
     if not argument or argument == [""]:
-        babase.quit(confirm=False, quit_type=babase.QuitType.HARD)
+        babase.quit(confirm=False)
     else:
         return
 
@@ -167,14 +215,46 @@ def goSpeed(argument, clientid):
 
 
 def gravity(argument):
-    moon = None
     if not argument or argument == [""]:
         with bs.get_foreground_host_activity().context:
-            player = all_player_actor()
-            moon = bs.timer(1, babase.Call(gravityMoon, player.node), repeat=True)
-    elif argument[0] == "off":
-        if moon is not None:
-            moon = None
+            for nodes in bs.getnodes():
+                if nodes.exists() and nodes.getnodetype() in ["spaz", "bomb"]:
+                    moon = bs.timer(1, babase.Call(gravityMoon, nodes), repeat=True)
+
+def freeze(argument, clientid):
+    if not argument or argument == ['']:
+        handle_msg(clientid, bs.FreezeMessage())
+    elif argument[0] == "all":
+        all_handle_msg(bs.FreezeMessage())
+    else:
+        player = index_from_client_id(int(argument[0]))
+        handle_msg(player, bs.FreezeMessage())
+
+def thaw(argument, clientid):
+    if not argument or argument == ['']:
+        handle_msg(clientid, bs.ThawMessage())
+    elif argument[0] == "all":
+        all_handle_msg(bs.ThawMessage())
+    else:
+        player = index_from_client_id(int(argument[0]))
+        handle_msg(player, bs.ThawMessage())
+
+def kill(argument, clientid):
+    if not argument or argument == ['']:
+        handle_msg(clientid, bs.DieMessage())
+    elif argument[0] == "all":
+        all_handle_msg(bs.DieMessage())
+    else:
+        player = index_from_client_id(int(argument[0]))
+        handle_msg(player, bs.DieMessage())
+
+
+def maxplayer(argument, clientid):
+    if not argument or argument == ['']:
+        sendmsg("enter max party size.", clientid)
+    else:
+        bs.set_public_party_max_size(int(argument[0]))
+        sendmsg(f"Party size Change to {argument[0]}.", clientid)
 
 
 def gravityMoon(node):
@@ -229,7 +309,7 @@ def blast_head(spaz):
         emit_type="distortion",
         spread=1.0,
     )
-    bs.emitfx(position=pos, velocity=vel, count=6, spread=0.7, chunk_type="metal")
+    bs.emitfx(position=pos, velocity=vel, count=6, spread=0.7, chunk_type="spark")
 
     bs.timer(2, explosion.delete)
 
