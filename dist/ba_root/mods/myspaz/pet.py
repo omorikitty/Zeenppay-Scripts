@@ -1,4 +1,4 @@
-# bs_meta require api 8
+# ba_meta require api 8
 """mod created by PatronModz port to api 8"""
 from __future__ import annotations
 from typing import TYPE_CHECKING
@@ -137,6 +137,8 @@ class LittlePet(bs.Actor):
         calls = []
 
         def vel(t):
+            if not self.node.exists():
+                return
             t = max(t, 0)
             n = list(self.node.velocity)
             p = list(self.owner.velocity)
