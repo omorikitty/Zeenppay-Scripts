@@ -22,6 +22,34 @@ if TYPE_CHECKING:
     from typing import Any, Type, List, Sequence, Optional
 
 
+
+
+
+def icon_status(self, spaz: bs.Actor):
+    if not spaz.node.exists() and not spaz.is_alive():
+        return
+    m = bs.newnode(
+        "math", owner=spaz.node, attrs={"input1": (-0.4, -0.5, 0), "operation": "add"}
+    )
+    spaz.node.connectattr("position", m, "input2")
+
+    spaz._icon_text = bs.newnode(
+        "text",
+        owner=spaz.node,
+        attrs={
+            "text": babase.charstr(babase.SpecialChar.DPAD_CENTER_BUTTON),
+            "in_world": True,
+            "shadow": 1.0,
+            "flatness": 1.0,
+            "color": (1, 1, 1),
+            "scale": 0.01,
+            "h_align": "center",
+        },
+    )
+    m.connectattr("output", spaz._icon_text, "position")
+    bs.animate(spaz._icon_text, 'opacity', {0: spaz._icon_text.opacity, 1: 0.6})
+
+
 class Icon(Icon):
     def update_for_lives(self) -> None:
         """Update for the target player's current lives."""
@@ -31,47 +59,58 @@ class Icon(Icon):
             lives = 0
         if self._show_lives:
             if lives > 1:
-                self._lives_text.text = 'x' + str(lives - 1)
+                self._lives_text.text = "x" + str(lives - 1) + "\n"
             else:
-                self._lives_text.text = ''
+                self._lives_text.text = ""
         if lives == 0:
             self._name_text.opacity = 0.2
             assert self.node
             self.node.color = (0.7, 0.3, 0.3)
             self.node.opacity = 0.2
 
-class PowBox(Bomb):
+    def update_porcentage(self, porcent) -> None:
+        if self._lives_text:
+            self._lives_text.text = str(porcent) + '%'
 
-    def __init__(self,
-                 position: Sequence[float] = (0.0, 1.0, 0.0),
-                 velocity: Sequence[float] = (0.0, 0.0, 0.0)) -> None:
-        Bomb.__init__(self,
-                      position,
-                      velocity,
-                      bomb_type='tnt',
-                      blast_radius=2.5,
-                      source_player=None,
-                      owner=None)
+
+class PowBox(Bomb):
+    def __init__(
+        self,
+        position: Sequence[float] = (0.0, 1.0, 0.0),
+        velocity: Sequence[float] = (0.0, 0.0, 0.0),
+    ) -> None:
+        Bomb.__init__(
+            self,
+            position,
+            velocity,
+            bomb_type="tnt",
+            blast_radius=2.5,
+            source_player=None,
+            owner=None,
+        )
         self.set_pow_text()
 
     def set_pow_text(self) -> None:
-        m = bs.newnode('math',
-                       owner=self.node,
-                       attrs={'input1': (0, 0.7, 0),
-                              'operation': 'add'})
-        self.node.connectattr('position', m, 'input2')
+        m = bs.newnode(
+            "math", owner=self.node, attrs={"input1": (0, 0.7, 0), "operation": "add"}
+        )
+        self.node.connectattr("position", m, "input2")
 
-        self._pow_text = bs.newnode('text',
-                                    owner=self.node,
-                                    attrs={'text':'POW!',
-                                           'in_world': True,
-                                           'shadow': 1.0,
-                                           'flatness': 1.0,
-                                           'color': (1, 1, 0.4),
-                                           'scale':0.0,
-                                           'h_align':'center'})
-        m.connectattr('output', self._pow_text, 'position')
-        bs.animate(self._pow_text, 'scale', {0: 0.0, 1.0: 0.01})
+        self._pow_text = bs.newnode(
+            "text",
+            owner=self.node,
+            attrs={
+                "text": "POW!",
+                "in_world": True,
+                "shadow": 1.0,
+                "flatness": 1.0,
+                "color": (1, 1, 0.4),
+                "scale": 0.0,
+                "h_align": "center",
+            },
+        )
+        m.connectattr("output", self._pow_text, "position")
+        bs.animate(self._pow_text, "scale", {0: 0.0, 1.0: 0.01})
 
     def pow(self) -> None:
         self.explode()
@@ -79,12 +118,18 @@ class PowBox(Bomb):
     def handlemessage(self, m: Any) -> Any:
         if isinstance(m, babase.PickedUpMessage):
             self._heldBy = m.node
+            self.node.gravity_scale = -1
         elif isinstance(m, bs.DroppedMessage):
-            bs.timer(0.6, self.pow)
+            # bs.timer(0.6, self.pow)
+            self.node.gravity_scale = 1
+        elif isinstance(m, bs.HitMessage):
+            bs.animate(self.node, "mesh_scale", {0: 0.3, 0.25: 0.1})
         Bomb.handlemessage(self, m)
+
 
 class SSPlayerSpaz(PlayerSpaz):
     multiplyer = 1.0
+    status = 0
     is_dead = False
 
     def oob_effect(self) -> None:
@@ -92,15 +137,31 @@ class SSPlayerSpaz(PlayerSpaz):
             return
         self.is_dead = True
         if self.multiplyer > 1.25:
-            blast_type = 'tnt'
-            radius = min(self.multiplyer * 5, 20)
+            blast_type = "tnt"
+            radius = 1.0
         else:
             # penalty for killing people with low multiplyer
-            blast_type = 'ice'
-            radius = 7.5
-        Blast(position=self.node.position,
-              blast_radius=radius,
-              blast_type=blast_type).autoretain()
+            blast_type = "normal"
+            radius = 0.1
+        assert self.node
+        position = self.node.position
+        vel = random.uniform(0.5, -0.5)
+        for i in range(5):
+            bs.emitfx(
+                position=(position[0], position[1] + i, position[2]),
+                velocity=(vel, 0, vel),
+                scale=1.0,
+                count=1,
+                spread=1.0,
+                chunk_type="spark",
+            )
+        self.node.shattered = 2
+        # Blast(position=position,
+        #       blast_radius=radius,
+        #       blast_type=blast_type).autoretain()
+
+    def set_text_status():
+        pass
 
     def handlemessage(self, msg: Any) -> Any:
         if isinstance(msg, bs.HitMessage):
@@ -114,9 +175,8 @@ class SSPlayerSpaz(PlayerSpaz):
             # (so punch flurries and bomb pileups essentially count as 1 hit)
             local_time = int(bs.time() * 1000.0)
             assert isinstance(local_time, int)
-            if (self._last_hit_time is None
-                    or local_time - self._last_hit_time > 1000):
-                self._num_times_hit += 3
+            if self._last_hit_time is None or local_time - self._last_hit_time > 1000:
+                self._num_times_hit += 1
                 self._last_hit_time = local_time
 
             mag = msg.magnitude * self.impact_scale
@@ -132,17 +192,28 @@ class SSPlayerSpaz(PlayerSpaz):
                     # theoretical damage; not apply the impulse.
                     assert msg.force_direction is not None
                     self.node.handlemessage(
-                        'impulse', msg.pos[0], msg.pos[1], msg.pos[2],
-                        msg.velocity[0], msg.velocity[1], msg.velocity[2], mag,
-                        velocity_mag, msg.radius, 1, msg.force_direction[0],
-                        msg.force_direction[1], msg.force_direction[2])
+                        "impulse",
+                        msg.pos[0],
+                        msg.pos[1],
+                        msg.pos[2],
+                        msg.velocity[0],
+                        msg.velocity[1],
+                        msg.velocity[2],
+                        mag,
+                        velocity_mag,
+                        msg.radius,
+                        1,
+                        msg.force_direction[0],
+                        msg.force_direction[1],
+                        msg.force_direction[2],
+                    )
                     damage = damage_scale * self.node.damage
 
                 assert self.shield_hitpoints is not None
                 self.shield_hitpoints -= int(damage)
                 self.shield.hurt = (
-                    1.0 -
-                    float(self.shield_hitpoints) / self.shield_hitpoints_max)
+                    1.0 - float(self.shield_hitpoints) / self.shield_hitpoints_max
+                )
 
                 # Its a cleaner event if a hit just kills the shield
                 # without damaging the player.
@@ -150,34 +221,43 @@ class SSPlayerSpaz(PlayerSpaz):
                 # damage the player. This hopefully gives us a happy medium.
                 max_spillover = SpazFactory.get().max_shield_spillover_damage
                 if self.shield_hitpoints <= 0:
-
                     # FIXME: Transition out perhaps?
                     self.shield.delete()
                     self.shield = None
-                    SpazFactory.get().shield_down_sound.play(1.0, position=self.node.position)
+                    SpazFactory.get().shield_down_sound.play(
+                        1.0, position=self.node.position
+                    )
 
                     # Emit some cool looking sparks when the shield dies.
                     npos = self.node.position
-                    bs.emitfx(position=(npos[0], npos[1] + 0.9, npos[2]),
-                              velocity=self.node.velocity,
-                              count=random.randrange(20, 30),
-                              scale=1.0,
-                              spread=0.6,
-                              chunk_type='spark')
+                    bs.emitfx(
+                        position=(npos[0], npos[1] + 0.9, npos[2]),
+                        velocity=self.node.velocity,
+                        count=random.randrange(20, 30),
+                        scale=1.0,
+                        spread=0.6,
+                        chunk_type="spark",
+                    )
 
                 else:
-                    SpazFactory.get().shield_hit_sound.play(0.5, position=self.node.position)
+                    SpazFactory.get().shield_hit_sound.play(
+                        0.5, position=self.node.position
+                    )
 
                 # Emit some cool looking sparks on shield hit.
                 assert msg.force_direction is not None
-                bs.emitfx(position=msg.pos,
-                          velocity=(msg.force_direction[0] * 1.0,
-                                    msg.force_direction[1] * 1.0,
-                                    msg.force_direction[2] * 1.0),
-                          count=min(30, 5 + int(damage * 0.005)),
-                          scale=0.5,
-                          spread=0.3,
-                          chunk_type='spark')
+                bs.emitfx(
+                    position=msg.pos,
+                    velocity=(
+                        msg.force_direction[0] * 1.0,
+                        msg.force_direction[1] * 1.0,
+                        msg.force_direction[2] * 1.0,
+                    ),
+                    count=min(30, 5 + int(damage * 0.005)),
+                    scale=0.5,
+                    spread=0.3,
+                    chunk_type="spark",
+                )
 
                 # If they passed our spillover threshold,
                 # pass damage along to spaz.
@@ -194,29 +274,40 @@ class SSPlayerSpaz(PlayerSpaz):
                 shield_leftover_ratio = 1.0
 
             if msg.flat_damage:
-                damage = int(msg.flat_damage * self.impact_scale *
-                             shield_leftover_ratio)
+                damage = int(
+                    msg.flat_damage * self.impact_scale * shield_leftover_ratio
+                )
             else:
                 # Hit it with an impulse and get the resulting damage.
                 assert msg.force_direction is not None
                 if self.multiplyer > 3.0:
                     # at about 8.0 the physics glitch out
-                    velocity_mag *= min((3.0 + (self.multiplyer-3.0)/4), 7.5) ** 2.0
+                    velocity_mag *= min((3.0 + (self.multiplyer - 3.0) / 4), 7.5) ** 1.5
                 else:
-                    velocity_mag *= self.multiplyer ** 2.0
-
+                    velocity_mag *= self.multiplyer**1.5
 
                 self.node.handlemessage(
-                    'impulse', msg.pos[0], msg.pos[1], msg.pos[2],
-                    msg.velocity[0], msg.velocity[1], msg.velocity[2], mag,
-                    velocity_mag, msg.radius, 0, msg.force_direction[0],
-                    msg.force_direction[1], msg.force_direction[2])
+                    "impulse",
+                    msg.pos[0],
+                    msg.pos[1],
+                    msg.pos[2],
+                    msg.velocity[0],
+                    msg.velocity[1],
+                    msg.velocity[2],
+                    mag,
+                    velocity_mag,
+                    msg.radius,
+                    0,
+                    msg.force_direction[0],
+                    msg.force_direction[1],
+                    msg.force_direction[2],
+                )
 
                 damage = int(damage_scale * self.node.damage)
-            self.node.handlemessage('hurt_sound')
+            self.node.handlemessage("hurt_sound")
 
             # Play punch impact sound based on damage if it was a punch.
-            if msg.hit_type == 'punch':
+            if msg.hit_type == "punch":
                 self.on_punched(damage)
 
                 # If damage was significant, lets show it.
@@ -227,8 +318,10 @@ class SSPlayerSpaz(PlayerSpaz):
 
                 # Let's always add in a super-punch sound with boxing
                 # gloves just to differentiate them.
-                if msg.hit_subtype == 'super_punch':
-                    SpazFactory.get().punch_sound_stronger.play(1.0, position=self.node.position)
+                if msg.hit_subtype == "super_punch":
+                    SpazFactory.get().punch_sound_stronger.play(
+                        1.0, position=self.node.position
+                    )
                 if damage > 500:
                     sounds = SpazFactory.get().punch_sound_strong
                     sound = sounds[random.randrange(len(sounds))]
@@ -238,77 +331,102 @@ class SSPlayerSpaz(PlayerSpaz):
 
                 # Throw up some chunks.
                 assert msg.force_direction is not None
-                bs.emitfx(position=msg.pos,
-                          velocity=(msg.force_direction[0] * 0.5,
-                                    msg.force_direction[1] * 0.5,
-                                    msg.force_direction[2] * 0.5),
-                          count=min(10, 1 + int(damage * 0.0025)),
-                          scale=0.3,
-                          spread=0.03)
+                bs.emitfx(
+                    position=msg.pos,
+                    velocity=(
+                        msg.force_direction[0] * 0.5,
+                        msg.force_direction[1] * 0.5,
+                        msg.force_direction[2] * 0.5,
+                    ),
+                    count=min(10, 1 + int(damage * 0.0025)),
+                    scale=0.3,
+                    spread=0.03,
+                )
 
-                bs.emitfx(position=msg.pos,
-                          chunk_type='sweat',
-                          velocity=(msg.force_direction[0] * 1.3,
-                                    msg.force_direction[1] * 1.3 + 5.0,
-                                    msg.force_direction[2] * 1.3),
-                          count=min(30, 1 + int(damage * 0.04)),
-                          scale=0.9,
-                          spread=0.28)
+                bs.emitfx(
+                    position=msg.pos,
+                    chunk_type="sweat",
+                    velocity=(
+                        msg.force_direction[0] * 1.3,
+                        msg.force_direction[1] * 1.3 + 5.0,
+                        msg.force_direction[2] * 1.3,
+                    ),
+                    count=min(30, 1 + int(damage * 0.04)),
+                    scale=0.9,
+                    spread=0.28,
+                )
 
                 # Momentary flash.
                 hurtiness = damage * 0.003
                 hurtiness = min(hurtiness, 750 * 0.003)
-                punchpos = (msg.pos[0] + msg.force_direction[0] * 0.02,
-                            msg.pos[1] + msg.force_direction[1] * 0.02,
-                            msg.pos[2] + msg.force_direction[2] * 0.02)
+                punchpos = (
+                    msg.pos[0] + msg.force_direction[0] * 0.02,
+                    msg.pos[1] + msg.force_direction[1] * 0.02,
+                    msg.pos[2] + msg.force_direction[2] * 0.02,
+                )
                 flash_color = (1.0, 0.8, 0.4)
                 light = bs.newnode(
-                    'light',
+                    "light",
                     attrs={
-                        'position': punchpos,
-                        'radius': 0.12 + hurtiness * 0.12,
-                        'intensity': 0.3 * (1.0 + 1.0 * hurtiness),
-                        'height_attenuated': False,
-                        'color': flash_color
-                    })
+                        "position": punchpos,
+                        "radius": 0.12 + hurtiness * 0.12,
+                        "intensity": 0.3 * (1.0 + 1.0 * hurtiness),
+                        "height_attenuated": False,
+                        "color": flash_color,
+                    },
+                )
                 bs.timer(0.06, light.delete)
 
-                flash = bs.newnode('flash',
-                                    attrs={
-                                        'position': punchpos,
-                                        'size': 0.17 + 0.17 * hurtiness,
-                                        'color': flash_color
-                                    })
+                flash = bs.newnode(
+                    "flash",
+                    attrs={
+                        "position": punchpos,
+                        "size": 0.17 + 0.17 * hurtiness,
+                        "color": flash_color,
+                    },
+                )
                 bs.timer(0.06, flash.delete)
 
-            if msg.hit_type == 'impact':
+            if msg.hit_type == "impact":
                 assert msg.force_direction is not None
-                bs.emitfx(position=msg.pos,
-                          velocity=(msg.force_direction[0] * 2.0,
-                                    msg.force_direction[1] * 2.0,
-                                    msg.force_direction[2] * 2.0),
-                          count=min(10, 1 + int(damage * 0.01)),
-                          scale=0.4,
-                          spread=0.1)
+                bs.emitfx(
+                    position=msg.pos,
+                    velocity=(
+                        msg.force_direction[0] * 2.0,
+                        msg.force_direction[1] * 2.0,
+                        msg.force_direction[2] * 2.0,
+                    ),
+                    count=min(10, 1 + int(damage * 0.01)),
+                    scale=0.4,
+                    spread=0.1,
+                )
             if self.hitpoints > 0:
-
                 # It's kinda crappy to die from impacts, so lets reduce
                 # impact damage by a reasonable amount *if* it'll keep us alive
-                if msg.hit_type == 'impact' and damage > self.hitpoints:
+                if msg.hit_type == "impact" and damage > self.hitpoints:
                     # Drop damage to whatever puts us at 10 hit points,
                     # or 200 less than it used to be whichever is greater
                     # (so it *can* still kill us if its high enough)
                     newdamage = max(damage - 200, self.hitpoints - 10)
                     damage = newdamage
-                self.node.handlemessage('flash')
+                self.node.handlemessage("flash")
 
                 # If we're holding something, drop it.
                 if damage > 0.0 and self.node.hold_node:
                     self.node.hold_node = None
                 # self.hitpoints -= damage
                 self.multiplyer += min(damage / 2000, 0.15)
-                if damage/2000 > 0.05:
-                    self.set_score_text(str(int((self.multiplyer-1)*100))+'%')
+                if damage / 2000 >= 0.0:
+                    self.status = int((self.multiplyer - 1) * 100)
+                    col = (1,1,1) # normal status
+                    if self.status >= 500 and self.status < 1000: # warning status
+                        col = (2, 2, 0)
+                    elif self.status >= 1000: # critic status!
+                        col = (2, 0, 0)
+
+                    self._player.actor._icon_text.color = col
+                    # bs.animate(self._score_text, "opacity", {0:self._score_text.opacity, 0.1: 0})
+
                 # self.node.hurt = 1.0 - float(
                 #   self.hitpoints) / self.hitpoints_max
                 self.node.hurt = 0.0
@@ -317,8 +435,10 @@ class SSPlayerSpaz(PlayerSpaz):
                 if self._cursed and damage > 0:
                     bs.timer(
                         0.05,
-                        bs.WeakCall(self.curse_explode,
-                                    msg.get_source_player(bs.Player)))
+                        bs.WeakCall(
+                            self.curse_explode, msg.get_source_player(bs.Player)
+                        ),
+                    )
 
                 # If we're frozen, shatter.. otherwise die if we hit zero
                 # if self.frozen and (damage > 200 or self.hitpoints <= 0):
@@ -349,19 +469,19 @@ class SSPlayerSpaz(PlayerSpaz):
             self.oob_effect()
             super().handlemessage(msg)
         elif isinstance(msg, bs.PowerupMessage):
-            if msg.poweruptype == 'health':
+            if msg.poweruptype == "health":
                 if self.multiplyer > 2:
                     self.multiplyer *= 0.5
                 else:
                     self.multiplyer *= 0.75
                 self.multiplyer = max(1, self.multiplyer)
-                self.set_score_text(str(int((self.multiplyer-1)*100))+"%")
+                self._player.actor._icon_text.color = (0.3, 0.8, 0.5)
             super().handlemessage(msg)
         else:
             super().handlemessage(msg)
 
 
-class Player(bs.Player['Team']):
+class Player(bs.Player["Team"]):
     """Our player type for this game."""
 
 
@@ -374,90 +494,87 @@ class Team(bs.Team[Player]):
 
 # ba_meta export bascenev1.GameActivity
 class SuperSmash(bs.TeamGameActivity[Player, Team]):
-
-    name = 'Super Smash'
-    description = 'Knock everyone off the map.'
+    name = "Super Smash"
+    description = "Knock everyone off the map."
 
     # Print messages when players die since it matters here.
     announce_player_deaths = True
 
     @classmethod
     def get_available_settings(
-            cls, sessiontype: Type[bs.Session]) -> List[babase.Setting]:
+        cls, sessiontype: Type[bs.Session]
+    ) -> List[babase.Setting]:
         settings = [
             bs.IntSetting(
-                'Kills to Win Per Player',
+                "Kills to Win Per Player",
                 min_value=1,
                 default=5,
                 increment=1,
             ),
             bs.IntChoiceSetting(
-                'Time Limit',
+                "Time Limit",
                 choices=[
-                    ('None', 0),
-                    ('1 Minute', 60),
-                    ('2 Minutes', 120),
-                    ('5 Minutes', 300),
-                    ('10 Minutes', 600),
-                    ('20 Minutes', 1200),
+                    ("None", 0),
+                    ("1 Minute", 60),
+                    ("2 Minutes", 120),
+                    ("5 Minutes", 300),
+                    ("10 Minutes", 600),
+                    ("20 Minutes", 1200),
                 ],
                 default=0,
             ),
             bs.FloatChoiceSetting(
-                'Respawn Times',
+                "Respawn Times",
                 choices=[
-                    ('Shorter', 0.25),
-                    ('Short', 0.5),
-                    ('Normal', 1.0),
-                    ('Long', 2.0),
-                    ('Longer', 4.0),
+                    ("Shorter", 0.25),
+                    ("Short", 0.5),
+                    ("Normal", 1.0),
+                    ("Long", 2.0),
+                    ("Longer", 4.0),
                 ],
                 default=1.0,
             ),
-            bs.BoolSetting('Boxing Gloves', default=False),
-            bs.BoolSetting('Epic Mode', default=False),
+            bs.BoolSetting("Boxing Gloves", default=False),
+            bs.BoolSetting("Epic Mode", default=False),
         ]
         if issubclass(sessiontype, bs.FreeForAllSession):
-            settings.append(
-                bs.BoolSetting('Allow Negative Scores', default=False))
+            settings.append(bs.BoolSetting("Allow Negative Scores", default=False))
         return settings
 
     @classmethod
     def supports_session_type(cls, sessiontype: Type[bs.Session]) -> bool:
-        return (issubclass(sessiontype, bs.DualTeamSession)
-                or issubclass(sessiontype, bs.FreeForAllSession))
+        return issubclass(sessiontype, bs.DualTeamSession) or issubclass(
+            sessiontype, bs.FreeForAllSession
+        )
 
     @classmethod
     def get_supported_maps(cls, sessiontype: Type[bs.Session]) -> List[str]:
-        maps = bs.app.classic.getmaps('melee')
-        for m in ['Lake Frigid', 'Hockey Stadium', 'Football Stadium']:
-            # remove maps without bounds
-            maps.remove(m)
+        maps = bs.app.classic.getmaps("melee")
+        # compatible all maps
         return maps
 
     def __init__(self, settings: dict):
         super().__init__(settings)
         self._scoreboard = Scoreboard()
         self._score_to_win: int | None = None
-        self._dingsound = bs.getsound('dingSmall')
-        self._epic_mode = bool(settings['Epic Mode'])
-        self._kills_to_win_per_player = int(
-            settings['Kills to Win Per Player'])
-        self._time_limit = float(settings['Time Limit'])
-        self._allow_negative_scores = bool(
-            settings.get('Allow Negative Scores', False))
-        self._boxing_gloves = bool(settings['Boxing Gloves'])
+        self._dingsound = bs.getsound("dingSmall")
+        self._epic_mode = bool(settings["Epic Mode"])
+        self._kills_to_win_per_player = int(settings["Kills to Win Per Player"])
+        self._time_limit = float(settings["Time Limit"])
+        self._allow_negative_scores = bool(settings.get("Allow Negative Scores", False))
+        self._boxing_gloves = bool(settings["Boxing Gloves"])
 
         # Base class overrides.
         self.slow_motion = self._epic_mode
-        self.default_music = (bs.MusicType.EPIC if self._epic_mode else
-                              bs.MusicType.SURVIVAL)
+        self.default_music = (
+            bs.MusicType.EPIC if self._epic_mode else bs.MusicType.SURVIVAL
+        )
 
     def get_instance_description(self) -> str | Sequence:
-        return 'Knock everyone off the map.'
+        return "Knock everyone off the map."
 
     def get_instance_description_short(self) -> str | Sequence:
-        return 'Knock off the map.'
+        return "Knock off the map."
 
     def on_begin(self) -> None:
         super().on_begin()
@@ -465,13 +582,14 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
         self.setup_standard_time_limit(self._time_limit)
         self.setup_standard_powerup_drops(enable_tnt=False)
         self._pow = None
-        self._tnt_drop_timer = bs.timer(1.0 * 0.30,
-                                        bs.WeakCall(self._drop_pow_box),
-                                        repeat=True)
+        self._tnt_drop_timer = bs.timer(
+            1.0 * 0.30, bs.WeakCall(self._drop_pow_box), repeat=True
+        )
 
         # Base kills needed to win on the size of the largest team.
-        self._score_to_win = (self._kills_to_win_per_player *
-                              max(1, max(len(t.players) for t in self.teams)))
+        self._score_to_win = self._kills_to_win_per_player * max(
+            1, max(len(t.players) for t in self.teams)
+        )
         self._update_scoreboard()
 
     def _drop_pow_box(self) -> None:
@@ -495,10 +613,13 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
         light_color = _math.normalized_color(player.color)
         display_color = babase.safecolor(player.color, target_intensity=0.75)
 
-        spaz = SSPlayerSpaz(color=player.color,
-                            highlight=player.highlight,
-                            character=player.character,
-                            player=player)
+        spaz = SSPlayerSpaz(
+            color=player.color,
+            highlight=player.highlight,
+            character=player.character,
+            player=player,
+        )
+
 
         player.actor = spaz
         assert spaz.node
@@ -507,27 +628,30 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
         # material that allows us to collide with the player-walls.
         # FIXME: Need to generalize this.
         if isinstance(self.session, bs.CoopSession) and self.map.getname() in [
-                'Courtyard', 'Tower D'
+            "Courtyard",
+            "Tower D",
         ]:
-            mat = self.map.preloaddata['collide_with_wall_material']
+            mat = self.map.preloaddata["collide_with_wall_material"]
             assert isinstance(spaz.node.materials, tuple)
             assert isinstance(spaz.node.roller_materials, tuple)
-            spaz.node.materials += (mat, )
-            spaz.node.roller_materials += (mat, )
+            spaz.node.materials += (mat,)
+            spaz.node.roller_materials += (mat,)
 
         spaz.node.name = name
         spaz.node.name_color = display_color
         spaz.connect_controls_to_player()
+        icon_status(self, spaz)
 
         # Move to the stand position and add a flash of light.
         spaz.handlemessage(
             bs.StandMessage(
-                position,
-                angle if angle is not None else random.uniform(0, 360)))
+                position, angle if angle is not None else random.uniform(0, 360)
+            )
+        )
         self._spawn_sound.play(1, position=spaz.node.position)
-        light = bs.newnode('light', attrs={'color': light_color})
-        spaz.node.connectattr('position', light, 'position')
-        bs.animate(light, 'intensity', {0: 0, 0.25: 1, 0.5: 0})
+        light = bs.newnode("light", attrs={"color": light_color})
+        spaz.node.connectattr("position", light, "position")
+        bs.animate(light, "intensity", {0: 0, 0.25: 1, 0.5: 0})
         bs.timer(0.5, light.delete)
 
         if self._boxing_gloves:
@@ -536,7 +660,6 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
         return spaz
 
     def handlemessage(self, msg: Any) -> Any:
-
         if isinstance(msg, bs.PlayerDiedMessage):
             # Augment standard behavior.
             super().handlemessage(msg)
@@ -550,7 +673,6 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
 
             # Handle team-kills.
             if killer.team is player.team:
-
                 # In free-for-all, killing yourself loses you a point.
                 if isinstance(self.session, bs.FreeForAllSession):
                     new_score = player.team.score - 1
@@ -572,10 +694,11 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
 
                 # In FFA show scores since its hard to find on the scoreboard.
                 if isinstance(killer.actor, SSPlayerSpaz) and killer.actor:
-                    killer.actor.set_score_text(str(killer.team.score) + '/' +
-                                                str(self._score_to_win),
-                                                color=killer.team.color,
-                                                flash=True)
+                    killer.actor.set_score_text(
+                        str(killer.team.score) + "/" + str(self._score_to_win),
+                        color=killer.team.color,
+                        flash=True,
+                    )
 
             self._update_scoreboard()
 
@@ -592,8 +715,7 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
 
     def _update_scoreboard(self) -> None:
         for team in self.teams:
-            self._scoreboard.set_team_value(team, team.score,
-                                            self._score_to_win)
+            self._scoreboard.set_team_value(team, team.score, self._score_to_win)
 
     def end_game(self) -> None:
         results = bs.GameResults()
@@ -602,7 +724,7 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
         self.end(results=results)
 
 
-class Player2(bs.Player['Team']):
+class Player2(bs.Player["Team"]):
     """Our player type for this game."""
 
     def __init__(self) -> None:
@@ -620,92 +742,91 @@ class Team2(bs.Team[Player]):
 
 # ba_meta export bascenev1.GameActivity
 class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
-
-    name = 'Super Smash Elimination'
-    description = 'Knock everyone off the map.'
-    scoreconfig = bs.ScoreConfig(label='Survived',
-                                 scoretype=bs.ScoreType.SECONDS,
-                                 none_is_winner=True)
+    name = "Super Smash Elimination"
+    description = "Knock everyone off the map."
+    scoreconfig = bs.ScoreConfig(
+        label="Survived", scoretype=bs.ScoreType.SECONDS, none_is_winner=True
+    )
 
     # Print messages when players die since it matters here.
     announce_player_deaths = True
 
     @classmethod
     def get_available_settings(
-            cls, sessiontype: Type[bs.Session]) -> List[babase.Setting]:
+        cls, sessiontype: Type[bs.Session]
+    ) -> List[babase.Setting]:
         settings = [
             bs.IntSetting(
-                'Lives (0 = Unlimited)',
+                "Lives (0 = Unlimited)",
                 min_value=0,
                 default=3,
                 increment=1,
             ),
             bs.IntChoiceSetting(
-                'Time Limit',
+                "Time Limit",
                 choices=[
-                    ('None', 0),
-                    ('1 Minute', 60),
-                    ('2 Minutes', 120),
-                    ('5 Minutes', 300),
-                    ('10 Minutes', 600),
-                    ('20 Minutes', 1200),
+                    ("None", 0),
+                    ("1 Minute", 60),
+                    ("2 Minutes", 120),
+                    ("5 Minutes", 300),
+                    ("10 Minutes", 600),
+                    ("20 Minutes", 1200),
                 ],
                 default=0,
             ),
             bs.FloatChoiceSetting(
-                'Respawn Times',
+                "Respawn Times",
                 choices=[
-                    ('Shorter', 0.25),
-                    ('Short', 0.5),
-                    ('Normal', 1.0),
-                    ('Long', 2.0),
-                    ('Longer', 4.0),
+                    ("Shorter", 0.25),
+                    ("Short", 0.5),
+                    ("Normal", 1.0),
+                    ("Long", 2.0),
+                    ("Longer", 4.0),
                 ],
                 default=1.0,
             ),
-            bs.BoolSetting('Boxing Gloves', default=False),
-            bs.BoolSetting('Epic Mode', default=False),
+            bs.BoolSetting("Boxing Gloves", default=False),
+            bs.BoolSetting("Epic Mode", default=False),
         ]
         return settings
 
     @classmethod
     def supports_session_type(cls, sessiontype: Type[bs.Session]) -> bool:
-        return (issubclass(sessiontype, bs.DualTeamSession)
-                or issubclass(sessiontype, bs.FreeForAllSession))
+        return issubclass(sessiontype, bs.DualTeamSession) or issubclass(
+            sessiontype, bs.FreeForAllSession
+        )
 
     @classmethod
     def get_supported_maps(cls, sessiontype: Type[bs.Session]) -> List[str]:
-        maps = bs.app.classic.getmaps('melee')
-        for m in ['Lake Frigid', 'Hockey Stadium', 'Football Stadium']:
-            # remove maps without bounds
-            maps.remove(m)
+        maps = bs.app.classic.getmaps("melee")
         return maps
 
     def __init__(self, settings: dict):
         super().__init__(settings)
-        self.lives = int(settings['Lives (0 = Unlimited)'])
-        self.time_limit_only = (self.lives == 0)
+        self.lives = int(settings["Lives (0 = Unlimited)"])
+        self.time_limit_only = self.lives == 0
         if self.time_limit_only:
-            settings['Time Limit'] = max(60, settings['Time Limit'])
+            settings["Time Limit"] = max(60, settings["Time Limit"])
 
-        self._epic_mode = bool(settings['Epic Mode'])
-        self._time_limit = float(settings['Time Limit'])
+        self._epic_mode = bool(settings["Epic Mode"])
+        self._time_limit = float(settings["Time Limit"])
 
         self._start_time: Optional[float] = 1.0
 
-        self._boxing_gloves = bool(settings['Boxing Gloves'])
-        self._solo_mode = bool(settings.get('Solo Mode', False))
+        self._boxing_gloves = bool(settings["Boxing Gloves"])
+        self._solo_mode = bool(settings.get("Solo Mode", False))
 
         # Base class overrides.
         self.slow_motion = self._epic_mode
-        self.default_music = (bs.MusicType.EPIC if self._epic_mode else
-                              bs.MusicType.SURVIVAL)
+        self.default_music = (
+            bs.MusicType.EPIC if self._epic_mode else bs.MusicType.SURVIVAL
+        )
 
     def get_instance_description(self) -> str | Sequence:
-        return 'Knock everyone off the map.'
+        return "Knock everyone off the map."
 
     def get_instance_description_short(self) -> str | Sequence:
-        return 'Knock off the map.'
+        return "Knock off the map."
 
     def on_begin(self) -> None:
         super().on_begin()
@@ -713,9 +834,9 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
         self.setup_standard_time_limit(self._time_limit)
         self.setup_standard_powerup_drops(enable_tnt=False)
         self._pow = None
-        self._tnt_drop_timer = bs.timer(1.0 * 0.30,
-                                        bs.WeakCall(self._drop_pow_box),
-                                        repeat=True)
+        self._tnt_drop_timer = bs.timer(
+            1.0 * 0.30, bs.WeakCall(self._drop_pow_box), repeat=True
+        )
         self._update_icons()
         bs.timer(1.0, self.check_end_game, repeat=True)
 
@@ -729,23 +850,24 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
         self._pow = PowBox(position=pos, velocity=(0.0, 1.0, 0.0))
 
     def on_player_join(self, player: Player) -> None:
-
         if self.has_begun():
-            if (all(teammate.lives == 0 for teammate in player.team.players)
-                    and player.team.survival_seconds is None):
+            if (
+                all(teammate.lives == 0 for teammate in player.team.players)
+                and player.team.survival_seconds is None
+            ):
                 player.team.survival_seconds = 0
             bs.broadcastmessage(
-                babase.Lstr(resource='playerDelayedJoinText',
-                        subs=[('${PLAYER}', player.getname(full=True))]),
+                babase.Lstr(
+                    resource="playerDelayedJoinText",
+                    subs=[("${PLAYER}", player.getname(full=True))],
+                ),
                 color=(0, 1, 0),
             )
             return
 
         player.lives = self.lives
         # create our icon and spawn
-        player.icons = [Icon(player,
-                            position=(0.0, 50),
-                            scale=0.8)]
+        player.icons = [Icon(player, position=(0.0, 50), scale=0.8)]
         if player.lives > 0 or self.time_limit_only:
             self.spawn_player(player)
 
@@ -772,17 +894,15 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
             xval = x_offs * (count - 1) * -0.5
             for team in self.teams:
                 if len(team.players) > 1:
-                    print('WTF have', len(team.players), 'players in ffa team')
+                    print("WTF have", len(team.players), "players in ffa team")
                 elif len(team.players) == 1:
                     player = team.players[0]
                     if len(player.icons) != 1:
-                        print(
-                            'WTF have',
-                            len(player.icons),
-                            'icons in non-solo elim')
+                        print("WTF have", len(player.icons), "icons in non-solo elim")
                     for icon in player.icons:
                         icon.set_position_and_scale((xval, 30), 0.7)
                         icon.update_for_lives()
+                        icon.update_porcentage(self.status)
                     xval += x_offs
 
         # In teams mode we split up teams.
@@ -805,22 +925,24 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
                     test_lives = 1
                     while True:
                         players_with_lives = [
-                            p for p in team.spawn_order
-                            if p and p.lives >= test_lives
+                            p for p in team.spawn_order if p and p.lives >= test_lives
                         ]
                         if not players_with_lives:
                             break
                         for player in players_with_lives:
                             player.icons.append(
-                                Icon(player,
-                                     position=(xval, (40 if is_first else 25)),
-                                     scale=1.0 if is_first else 0.5,
-                                     name_maxwidth=130 if is_first else 75,
-                                     name_scale=0.8 if is_first else 1.0,
-                                     flatness=0.0 if is_first else 1.0,
-                                     shadow=0.5 if is_first else 1.0,
-                                     show_death=is_first,
-                                     show_lives=False))
+                                Icon(
+                                    player,
+                                    position=(xval, (40 if is_first else 25)),
+                                    scale=1.0 if is_first else 0.5,
+                                    name_maxwidth=130 if is_first else 75,
+                                    name_scale=0.8 if is_first else 1.0,
+                                    flatness=0.0 if is_first else 1.0,
+                                    shadow=0.5 if is_first else 1.0,
+                                    show_death=is_first,
+                                    show_lives=False,
+                                )
+                            )
                             xval += x_offs * (0.8 if is_first else 0.56)
                             is_first = False
                         test_lives += 1
@@ -836,13 +958,14 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
                     for player in team.players:
                         if len(player.icons) != 1:
                             print(
-                                'WTF have',
-                                len(player.icons),
-                                'icons in non-solo elim')
+                                "WTF have", len(player.icons), "icons in non-solo elim"
+                            )
                         for icon in player.icons:
                             icon.set_position_and_scale((xval, 30), 0.7)
                             icon.update_for_lives()
                         xval += x_offs
+
+    
 
     # overriding the default character spawning..
     def spawn_player(self, player: Player) -> bs.Actor:
@@ -857,10 +980,12 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
         light_color = _math.normalized_color(player.color)
         display_color = babase.safecolor(player.color, target_intensity=0.75)
 
-        spaz = SSPlayerSpaz(color=player.color,
-                            highlight=player.highlight,
-                            character=player.character,
-                            player=player)
+        spaz = SSPlayerSpaz(
+            color=player.color,
+            highlight=player.highlight,
+            character=player.character,
+            player=player,
+        )
 
         player.actor = spaz
         assert spaz.node
@@ -869,28 +994,33 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
         # material that allows us to collide with the player-walls.
         # FIXME: Need to generalize this.
         if isinstance(self.session, bs.CoopSession) and self.map.getname() in [
-                'Courtyard', 'Tower D'
+            "Courtyard",
+            "Tower D",
         ]:
-            mat = self.map.preloaddata['collide_with_wall_material']
+            mat = self.map.preloaddata["collide_with_wall_material"]
             assert isinstance(spaz.node.materials, tuple)
             assert isinstance(spaz.node.roller_materials, tuple)
-            spaz.node.materials += (mat, )
-            spaz.node.roller_materials += (mat, )
+            spaz.node.materials += (mat,)
+            spaz.node.roller_materials += (mat,)
 
         spaz.node.name = name
         spaz.node.name_color = display_color
         spaz.connect_controls_to_player()
+        icon_status(self, spaz)
 
         # Move to the stand position and add a flash of light.
         spaz.handlemessage(
             bs.StandMessage(
-                position,
-                angle if angle is not None else random.uniform(0, 360)))
+                position, angle if angle is not None else random.uniform(0, 360)
+            )
+        )
         self._spawn_sound.play(1, position=spaz.node.position)
-        light = bs.newnode('light', attrs={'color': light_color})
-        spaz.node.connectattr('position', light, 'position')
-        bs.animate(light, 'intensity', {0: 0, 0.25: 1, 0.5: 0})
+        light = bs.newnode("light", attrs={"color": light_color})
+        spaz.node.connectattr("position", light, "position")
+        bs.animate(light, "intensity", {0: 0, 0.25: 1, 0.5: 0})
         bs.timer(0.5, light.delete)
+
+
 
         # If we have any icons, update their state.
         for icon in player.icons:
@@ -905,7 +1035,6 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
         return sum(player.lives for player in team.players)
 
     def handlemessage(self, msg: Any) -> Any:
-
         if isinstance(msg, bs.PlayerDiedMessage):
             # Augment standard behavior.
             super().handlemessage(msg)
@@ -929,8 +1058,7 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
                 # If the whole team is now dead, mark their survival time.
                 if self._get_total_team_lives(player.team) == 0:
                     assert self._start_time is not None
-                    player.team.survival_seconds = int(bs.time() -
-                                                       self._start_time)
+                    player.team.survival_seconds = int(bs.time() - self._start_time)
             # we still have lives; yay!
             else:
                 self.respawn_player(player)
@@ -947,9 +1075,10 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
 
     def _get_living_teams(self) -> List[Team]:
         return [
-            team for team in self.teams
-            if len(team.players) > 0 and any(player.lives > 0
-                                             for player in team.players)
+            team
+            for team in self.teams
+            if len(team.players) > 0
+            and any(player.lives > 0 for player in team.players)
         ]
 
     def end_game(self) -> None:
