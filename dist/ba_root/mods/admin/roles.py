@@ -1,3 +1,4 @@
+# ba_meta require api 8
 import bascenev1 as bs
 import babase
 import json
@@ -27,6 +28,39 @@ def dontAdmin(account):
                 return False
     return True
 
+def add_account_rol(account: str, rol: str, name: str):
+    role = get_all_roles()
+    role_id = role[rol]["id"]
+    if rol in role:
+        if not account in role_id:
+            try:
+                role_id.append(account)
+                bs.broadcastmessage(f"{name} Ha sido agregado Existosamente.")
+                save(role_id)
+            except:
+                bs.broadcastmessage("Hubo un error al agregar el accountid")
+                return
+        else:
+            bs.broadcastmessage(f"{name} Ya tiene un rol en {rol}")
+            return
+    else:
+        bs.broadcastmessage(f"{rol} no existe")
+        return
+
+def remove_account_rol(account: str, rol: str, name: str):
+    role = get_all_roles()
+    role_id = role[rol]["id"]
+    if rol in role and account in role_id:
+        try:
+            role_id.remove(account)
+            bs.broadcastmessage(f"{name} Ha sido agregado Existosamente.\n from rol: {rol}")
+            save(role_id)
+        except:
+            bs.broadcastmessage("Hubo un error al agregar el accountid")
+            return
+    else:
+        bs.broadcastmessage(f"{rol} no existe")
+        return
 
 def whatRol(account):
     """retorna el tipo de rol espesifico"""
@@ -49,5 +83,5 @@ def get_all_roles():
 
 def save(data: dict):
     """Guarda los cambios que hagamos en el admin.json"""
-    with open(ROLES_PATH, mode="w", encoding="utf-8") as rol:
+    with open(ROLES_PATH, mode="w+", encoding="utf-8") as rol:
         json.dump(data, rol, indent=4)
