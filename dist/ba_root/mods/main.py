@@ -8,9 +8,14 @@ import _babase
 import babase
 import logging
 import bascenev1._hooks
-from plugins import importcustomcharacters, character_chooser, color_explosion, colorfulmaps2
+from plugins import (
+    importcustomcharacters,
+    character_chooser,
+    color_explosion,
+    colorfulmaps2,
+    particle_effects,
+)
 from myspaz import spazmod
-
 
 
 # ba_meta export babase.Plugin
@@ -35,6 +40,18 @@ def runMods():
     importcustomcharacters.enable()
     character_chooser.enable()
     color_explosion.enable()
+
+c_begin = bs._activity.Activity.on_begin
+
+def modify_begin(self):
+    c_begin(self)
+    activity = bs.get_foreground_host_activity()
+    if not isinstance(activity, bs.GameActivity):
+        return
+    activity.cubegenerator()
+    activity.globalsnode.tint = (0.4, 0.8, 1)
+
+bs._activity.Activity.on_begin = modify_begin
 
 def import_gamemodes():
     """Usaremos esta funcion para importar los modos de juegos de manera dinamica"""
