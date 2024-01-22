@@ -1,6 +1,6 @@
 # ba_meta require api 8
 import bascenev1 as bs
-from admin.roles import get_all_roles
+from admin import roles
 
 
 prefixes = ["/", "!", ".", ",", "#", "?", "*", "@"]
@@ -133,7 +133,7 @@ def is_server(pb):
 
 def is_admin(pb):
     """Comprueba si el account_id esta en la lista de ids de los roles"""
-    role = get_all_roles()
+    role = roles.get_all_roles()
     for rol in role:
         if pb in role[rol]["id"]:
             return True

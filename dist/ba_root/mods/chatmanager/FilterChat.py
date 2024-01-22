@@ -3,8 +3,8 @@ import bascenev1 as bs
 import bascenev1._hooks
 from admin.roles import whatRol
 from logger.logs import LoggerControl
-from .handle import sendmsg, is_server, get_uniqueid
-from .cmds import handleCmd
+from chatmanager.handle import sendmsg, is_server, get_uniqueid
+from chatmanager.cmds import handleCmd
 
 prefixes = ["/", "!", ".", ",", "#", "?", "*", "@"]
 prefix = tuple(prefix for prefix in prefixes)

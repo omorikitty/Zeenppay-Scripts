@@ -3,6 +3,7 @@ import bascenev1 as bs
 import babase
 import json
 import os
+from chatmanager import handle
 
 
 ROLES_PATH = os.path.join(babase.env().get("python_directory_user", ""), "admin.json")
@@ -28,39 +29,64 @@ def dontAdmin(account):
                 return False
     return True
 
-def add_account_rol(account: str, rol: str, name: str):
-    role = get_all_roles()
-    role_id = role[rol]["id"]
-    if rol in role:
+
+def add_account_rol(account: str, rol: str, name: str, clientid: int):
+    """Otorga permisos de admin.
+
+    Args:
+        account (str): accountid.
+        rol (str): rol ex: (owner,vip,admin,etc..)
+        name (str): player name.
+    """
+    m = ""
+    roles = get_all_roles()
+
+    if rol in roles:
+        role_id = roles[rol]["id"]
+
         if not account in role_id:
             try:
                 role_id.append(account)
-                bs.broadcastmessage(f"{name} Ha sido agregado Existosamente.")
-                save(role_id)
-            except:
-                bs.broadcastmessage("Hubo un error al agregar el accountid")
+                m = f"{name} ha sido agregado exitosamente."
+                save(roles)
+            except Exception as e:
+                m = f"Hubo un error al agregar el accountid: {e}"
                 return
         else:
-            bs.broadcastmessage(f"{name} Ya tiene un rol en {rol}")
+            m = f"{name} ya tiene un rol en {rol}."
             return
     else:
-        bs.broadcastmessage(f"{rol} no existe")
+        m = f"{rol} no existe."
         return
 
-def remove_account_rol(account: str, rol: str, name: str):
+    handle.sendmsg(m, clientid)
+
+
+def remove_account_rol(account: str, rol: str, name: str, clientid: int):
+    """Remueve el accountid del rol.
+
+    Args:
+        account (str): accountid.
+        rol (str): rol ex: (owner,vip,admin,etc..)
+        name (str): player name.
+    """
+    m = ""
     role = get_all_roles()
     role_id = role[rol]["id"]
     if rol in role and account in role_id:
         try:
             role_id.remove(account)
-            bs.broadcastmessage(f"{name} Ha sido agregado Existosamente.\n from rol: {rol}")
-            save(role_id)
+            m = f"{name} Ha sido Removido Existosamente.\n from rol: {rol}"
+            save(role)
         except:
-            bs.broadcastmessage("Hubo un error al agregar el accountid")
+            m = "Hubo un error al agregar el accountid"
             return
     else:
-        bs.broadcastmessage(f"{rol} no existe")
+        m = f"{rol} no existe"
         return
+
+    handle.sendmsg(m, clientid)
+
 
 def whatRol(account):
     """retorna el tipo de rol espesifico"""
@@ -83,5 +109,5 @@ def get_all_roles():
 
 def save(data: dict):
     """Guarda los cambios que hagamos en el admin.json"""
-    with open(ROLES_PATH, mode="w+", encoding="utf-8") as rol:
+    with open(ROLES_PATH, mode="w", encoding="utf-8") as rol:
         json.dump(data, rol, indent=4)

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # ba_meta require api 8
-
+import random
 import bascenev1 as bs
 import babase
 import _babase
-from .handle import (
+from chatmanager.handle import (
     sendmsg,
     playerFromClientID,
     is_admin,
@@ -16,10 +16,10 @@ from .handle import (
     everyone,
     handle_msg,
     all_handle_msg,
-    index_from_client_id
+    index_from_client_id,
 )
 from admin import roles
-from .cmdManager import CommandManager
+from chatmanager.cmdManager import CommandManager
 from admin.roles import add_account_rol, remove_account_rol, get_all_roles
 import time
 import threading
@@ -37,7 +37,7 @@ adminCommand = [
     "freeze",
     "thaw",
     "kill",
-    "maxplayer"
+    "maxplayer",
 ]
 manager = CommandManager()
 
@@ -69,7 +69,7 @@ def admin_command(func):
 
     def wrapper(msg, client_id):
         cmds = extract_command(msg)
-        if authorize(client_id, msg) and cmds in adminCommand:
+        if authorize(client_id, msg):
             func(msg, client_id)
         else:
             sendmsg("Tu ere pobre, tu no tiene admin.", client_id)
@@ -152,15 +152,25 @@ def handleCmd(
         elif command == "rol":
             add_admin(argument, client_id)
 
+
     except Exception as e:
         sendmsg(f"Error: {e}", client_id)
         return
 
 
+# def cubes(argument):
+#     if not argument or argument == [""]:
+#         activity = bs.get_foreground_host_activity()
+#         with activity.context:
+#             activity.cubegenerator()
+
 
 def add_admin(argument, clientid):
-    if not argument or argument == [''] or len(argument) < 3:
-        sendmsg(f"Formato: /rol <rol: owner, admin, vip> | <add/remove> | <clientid/playerid>", clientid)
+    if not argument or argument == [""] or len(argument) < 3:
+        sendmsg(
+            f"Formato: /rol <rol: owner, admin, vip> | <add/remove> | <clientid/playerid>",
+            clientid,
+        )
     else:
         rol = argument[0]
         if rol in get_all_roles():
@@ -168,12 +178,12 @@ def add_admin(argument, clientid):
                 player = playerFromClientID(int(argument[2]))
                 accountid = player.get_v1_account_id()
                 name = player.getname(True, True)
-                add_account_rol(rol, accountid, name)
+                add_account_rol(accountid, rol, name, clientid)
             elif argument[1] == "remove":
                 player = playerFromClientID(int(argument[2]))
                 accountid = player.get_v1_account_id()
                 name = player.getname(True, True)
-                remove_account_rol(rol, accountid, name)
+                remove_account_rol(accountid, rol, name, clientid)
         else:
             return
 
@@ -221,8 +231,9 @@ def gravity(argument):
                 if nodes.exists() and nodes.getnodetype() in ["spaz", "bomb"]:
                     moon = bs.timer(1, babase.Call(gravityMoon, nodes), repeat=True)
 
+
 def freeze(argument, clientid):
-    if not argument or argument == ['']:
+    if not argument or argument == [""]:
         handle_msg(clientid, bs.FreezeMessage())
     elif argument[0] == "all":
         all_handle_msg(bs.FreezeMessage())
@@ -230,8 +241,9 @@ def freeze(argument, clientid):
         player = index_from_client_id(int(argument[0]))
         handle_msg(player, bs.FreezeMessage())
 
+
 def thaw(argument, clientid):
-    if not argument or argument == ['']:
+    if not argument or argument == [""]:
         handle_msg(clientid, bs.ThawMessage())
     elif argument[0] == "all":
         all_handle_msg(bs.ThawMessage())
@@ -239,8 +251,9 @@ def thaw(argument, clientid):
         player = index_from_client_id(int(argument[0]))
         handle_msg(player, bs.ThawMessage())
 
+
 def kill(argument, clientid):
-    if not argument or argument == ['']:
+    if not argument or argument == [""]:
         handle_msg(clientid, bs.DieMessage())
     elif argument[0] == "all":
         all_handle_msg(bs.DieMessage())
@@ -250,7 +263,7 @@ def kill(argument, clientid):
 
 
 def maxplayer(argument, clientid):
-    if not argument or argument == ['']:
+    if not argument or argument == [""]:
         sendmsg("enter max party size.", clientid)
     else:
         bs.set_public_party_max_size(int(argument[0]))
