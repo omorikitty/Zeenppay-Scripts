@@ -14,6 +14,7 @@ from plugins import (
     color_explosion,
     colorfulmaps2,
     particle_effects,
+    dash
 )
 from myspaz import spazmod
 
@@ -40,6 +41,7 @@ def runMods():
     importcustomcharacters.enable()
     character_chooser.enable()
     color_explosion.enable()
+    dash.enable()
 
 c_begin = bs._activity.Activity.on_begin
 
