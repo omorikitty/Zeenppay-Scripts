@@ -4,30 +4,37 @@ import random
 import bascenev1 as bs
 import _babase
 import babase
+from bascenev1lib.gameutils import SharedObjects
+from bascenev1lib.actor.spazfactory import SpazFactory
+from bascenev1._messages import OutOfBoundsMessage, DieMessage, DeathType
 
 
 class effectAmbient(bs.Actor):
     """clase que crea efectos de ambiente para los mapas."""
 
-    def __init__(self, bounds, random_text:bool=False):
-        super().__init__()
+    def __init__(self, bounds, random_text: bool = False):
+        bs.Actor.__init__(self)
 
         self.bounds = (
             random.uniform(bounds[0], bounds[3]),
-            random.uniform(bounds[1], bounds[4]) - 1.0,
+            random.uniform(bounds[1], bounds[4]),
             random.uniform(bounds[2], bounds[5]),
         )
 
         # No collision
         self.no_collision = bs.Material()
         self.no_collision.add_actions(
+            conditions=("they_have_material", SpazFactory.get().punch_material),
             actions=(
                 ("modify_part_collision", "collide", False),
                 ("modify_part_collision", "physical", False),
-            )
+            ),
         )
+
         if random_text:
-            tex_random = random.choice(["bonesColorMask", "aliColorMask", "egg2", "egg4", "egg1"])
+            tex_random = random.choice(
+                ["bonesColorMask", "aliColorMask", "egg2", "egg4", "egg1"]
+            )
 
         self.particle = bs.newnode(
             "prop",
@@ -36,62 +43,49 @@ class effectAmbient(bs.Actor):
                 "position": self.bounds,
                 "velocity": (0, 1, 0),
                 "mesh": bs.getmesh("box"),
-                "mesh_scale": 0.08,
-                "color_texture": bs.gettexture("null" if not random_text else tex_random),
+                "mesh_scale": 0.072,
+                "color_texture": bs.gettexture(
+                    "null" if not random_text else tex_random
+                ),
                 "body": "crate",
-                "gravity_scale": 1,
-                "shadow_size": 0.1,
-                "reflection": "soft",
-                "reflection_scale": [5],
-                "body_scale": 0.1,
-                "extra_acceleration": (0, 20, 0), # floten verticalmente hacia arriba :p
-                # "damping": 999 * 999,
+                "gravity_scale": 0.0,
+                "shadow_size": 0.8,
+                "reflection": "powerup",
+                "reflection_scale": [0],
+                "body_scale": 0,
                 "materials": [self.no_collision],
             },
         )
 
-        light = bs.newnode(
-            "light",
-            owner=self.particle,
-            attrs={
-                "height_attenuated": False,
-                "color": (1.0, 0.8, 0.4),
-            },
-        )
-        self.particle.connectattr("position", light, "position")
+        self._animate()
 
-        bs.animate(
-            light,
-            "radius",
-            {0: 0, 1: 0.06, 4: 0}
-        )
-        bs.animate(
-            light,
-            "intensity",
-            {0: 0, 1: 0.7, 4: 0}
-        )
-
-
+    def _animate(self) -> None:
+        if not self.particle:
+            return
         bs.animate(
             self.particle,
             "mesh_scale",
-            {0.0: 0, 4: self.particle.mesh_scale, 8: 0.0},
+            {
+                0: 0,
+                2: self.particle.mesh_scale,
+                4: 0,
+                5: self.particle.mesh_scale,
+                6: 0,
+            },
             loop=True,
         )
-        self._die_timer = bs.timer(
-            4.0, bs.WeakCall(self.handlemessage, bs.DieMessage())
-        )
 
-    def dead_cube(self):
-        if hasattr(self, "particle") or self.particle.exists():
-            bs.timer(10.5, self.particle.delete)
-            #print("Particle deleted.") # debug
-
-    def handlemessage(self, m):
-        if isinstance(m, bs.DieMessage):
-            self.dead_cube()
-        elif isinstance(m, bs.OutOfBoundsMessage):
-            self.handlemessage(bs.DieMessage(how=bs.DeathType.OUT_OF_BOUNDS))
+    def handlemessage(self, msg):
+        assert not self.expired
+        if isinstance(msg, DieMessage):
+            if self.particle:
+                self.particle.delete()
+                # print("Destroy")  # debug
+        elif isinstance(msg, OutOfBoundsMessage):
+            self.handlemessage(DieMessage(how=DeathType.OUT_OF_BOUNDS, immediate=True))
+            # print("Particle Deleted.")  # debug
+        else:
+            super().handlemessage(msg)
 
 
 def create_particles(count: int):
@@ -99,26 +93,27 @@ def create_particles(count: int):
     if activity is not None:
         if not hasattr(activity, "cubes"):
             activity.cubes = []
-        
+
         if hasattr(activity, "map"):
             bounds = activity.map.get_def_bound_box("area_of_interest_bounds")
-            new_cubes = []
             for _ in range(count):
                 with activity.context:
-                    cube = effectAmbient(bounds)
-                    new_cubes.append(cube)
+                    cube = effectAmbient(bounds).autoretain()
+                    activity.cubes.append(cube)
+                    # print(len(activity.cubes)) # debug
 
-            
             for cube in activity.cubes:
-                cube.handlemessage(bs.DieMessage())
-            activity.cubes = new_cubes
-
-
+                if cube.particle.exists():
+                    bs.timer(
+                        7.5,
+                        babase.Call(cube.particle.handlemessage, DieMessage()),
+                    )
+            activity.cubes = []
 
 
 def gen_cubes(activity):
-    create_particles(random.randint(1, 2))
-    bs.timer(0.8, babase.Call(gen_cubes, activity), repeat=False)
+    create_particles(1)
+    bs.timer(0.4, babase.Call(gen_cubes, activity))
 
 
 bs._activity.Activity.cubegenerator = gen_cubes
