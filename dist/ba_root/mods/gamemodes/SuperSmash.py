@@ -22,17 +22,13 @@ if TYPE_CHECKING:
     from typing import Any, Type, List, Sequence, Optional
 
 
-
-
-
-def icon_status(self, spaz: bs.Actor):
+def icon_status(spaz: bs.Actor):
     if not spaz.node.exists() and not spaz.is_alive():
         return
     m = bs.newnode(
         "math", owner=spaz.node, attrs={"input1": (-0.4, -0.5, 0), "operation": "add"}
     )
-    spaz.node.connectattr("position", m, "input2")
-
+    spaz.node.connectattr("torso_position", m, "input2")
     spaz._icon_text = bs.newnode(
         "text",
         owner=spaz.node,
@@ -47,7 +43,7 @@ def icon_status(self, spaz: bs.Actor):
         },
     )
     m.connectattr("output", spaz._icon_text, "position")
-    bs.animate(spaz._icon_text, 'opacity', {0: spaz._icon_text.opacity, 1: 0.6})
+    bs.animate(spaz._icon_text, "opacity", {0: spaz._icon_text.opacity, 1: 0.6})
 
 
 class Icon(Icon):
@@ -59,7 +55,7 @@ class Icon(Icon):
             lives = 0
         if self._show_lives:
             if lives > 1:
-                self._lives_text.text = "x" + str(lives - 1) + "\n"
+                self._lives_text.text = "x" + str(lives - 1)
             else:
                 self._lives_text.text = ""
         if lives == 0:
@@ -70,7 +66,7 @@ class Icon(Icon):
 
     def update_porcentage(self, porcent) -> None:
         if self._lives_text:
-            self._lives_text.text = str(porcent) + '%'
+            self._lives_text.text = str(porcent) + "%"
 
 
 class PowBox(Bomb):
@@ -116,7 +112,7 @@ class PowBox(Bomb):
         self.explode()
 
     def handlemessage(self, m: Any) -> Any:
-        if isinstance(m, babase.PickedUpMessage):
+        if isinstance(m, bs.PickedUpMessage):
             self._heldBy = m.node
             self.node.gravity_scale = -1
         elif isinstance(m, bs.DroppedMessage):
@@ -138,30 +134,26 @@ class SSPlayerSpaz(PlayerSpaz):
         self.is_dead = True
         if self.multiplyer > 1.25:
             blast_type = "tnt"
-            radius = 1.0
+            radius = 5.0
         else:
             # penalty for killing people with low multiplyer
             blast_type = "normal"
-            radius = 0.1
+            radius = 2.0
         assert self.node
         position = self.node.position
-        vel = random.uniform(0.5, -0.5)
         for i in range(5):
             bs.emitfx(
                 position=(position[0], position[1] + i, position[2]),
-                velocity=(vel, 0, vel),
+                velocity=(self.node.velocity[0], -1, self.node.velocity[2]),
                 scale=1.0,
                 count=1,
-                spread=1.0,
+                spread=0.5,
                 chunk_type="spark",
             )
         self.node.shattered = 2
-        # Blast(position=position,
-        #       blast_radius=radius,
-        #       blast_type=blast_type).autoretain()
-
-    def set_text_status():
-        pass
+        Blast(
+            position=position, blast_radius=radius, blast_type=blast_type
+        ).autoretain()
 
     def handlemessage(self, msg: Any) -> Any:
         if isinstance(msg, bs.HitMessage):
@@ -381,8 +373,8 @@ class SSPlayerSpaz(PlayerSpaz):
                     "flash",
                     attrs={
                         "position": punchpos,
-                        "size": 0.17 + 0.17 * hurtiness,
-                        "color": flash_color,
+                        "size": 0.25 + 0.25 * hurtiness,
+                        "color": random.choice([(0, 1, 0), (0, 1, 1)]),
                     },
                 )
                 bs.timer(0.06, flash.delete)
@@ -418,14 +410,14 @@ class SSPlayerSpaz(PlayerSpaz):
                 self.multiplyer += min(damage / 2000, 0.15)
                 if damage / 2000 >= 0.0:
                     self.status = int((self.multiplyer - 1) * 100)
-                    col = (1,1,1) # normal status
-                    if self.status >= 500 and self.status < 1000: # warning status
+                    # print(self.status) # depuration
+                    col = (1, 1, 1)  # normal status
+                    if self.status >= 500 and self.status < 1000:  # warning status
                         col = (2, 2, 0)
-                    elif self.status >= 1000: # critic status!
+                    elif self.status >= 1000:  # critic status!
                         col = (2, 0, 0)
-
                     self._player.actor._icon_text.color = col
-                    # bs.animate(self._score_text, "opacity", {0:self._score_text.opacity, 0.1: 0})
+                    # self._set_score_text(str(damage))
 
                 # self.node.hurt = 1.0 - float(
                 #   self.hitpoints) / self.hitpoints_max
@@ -476,6 +468,7 @@ class SSPlayerSpaz(PlayerSpaz):
                     self.multiplyer *= 0.75
                 self.multiplyer = max(1, self.multiplyer)
                 self._player.actor._icon_text.color = (0.3, 0.8, 0.5)
+                # self._set_score_text("heal")
             super().handlemessage(msg)
         else:
             super().handlemessage(msg)
@@ -620,7 +613,6 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
             player=player,
         )
 
-
         player.actor = spaz
         assert spaz.node
 
@@ -640,7 +632,7 @@ class SuperSmash(bs.TeamGameActivity[Player, Team]):
         spaz.node.name = name
         spaz.node.name_color = display_color
         spaz.connect_controls_to_player()
-        icon_status(self, spaz)
+        icon_status(spaz)
 
         # Move to the stand position and add a flash of light.
         spaz.handlemessage(
@@ -902,7 +894,7 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
                     for icon in player.icons:
                         icon.set_position_and_scale((xval, 30), 0.7)
                         icon.update_for_lives()
-                        icon.update_porcentage(self.status)
+                        # icon.update_porcentage(self.status)
                     xval += x_offs
 
         # In teams mode we split up teams.
@@ -965,8 +957,6 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
                             icon.update_for_lives()
                         xval += x_offs
 
-    
-
     # overriding the default character spawning..
     def spawn_player(self, player: Player) -> bs.Actor:
         if isinstance(self.session, bs.DualTeamSession):
@@ -1006,7 +996,7 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
         spaz.node.name = name
         spaz.node.name_color = display_color
         spaz.connect_controls_to_player()
-        icon_status(self, spaz)
+        icon_status(spaz)
 
         # Move to the stand position and add a flash of light.
         spaz.handlemessage(
@@ -1019,8 +1009,6 @@ class SuperSmashElimination(bs.TeamGameActivity[Player2, Team2]):
         spaz.node.connectattr("position", light, "position")
         bs.animate(light, "intensity", {0: 0, 0.25: 1, 0.5: 0})
         bs.timer(0.5, light.delete)
-
-
 
         # If we have any icons, update their state.
         for icon in player.icons:
